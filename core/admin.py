@@ -59,6 +59,11 @@ class ParameterValueAdmin(admin.ModelAdmin):
         return field
 
 
-admin.site.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['name', 'article_number']
+    search_fields = ['name', 'article_number']
+
+
+admin.site.register(Product, ProductAdmin)
 admin.site.register(Parameter)
 admin.site.register(ParameterValue, ParameterValueAdmin)

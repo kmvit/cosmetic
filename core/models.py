@@ -83,7 +83,7 @@ class Product(models.Model):
         return f'{self.name}({self.article_number})'
 
     class Meta:
-        verbose_name = "Косметику"
+        verbose_name = "Косметика"
         verbose_name_plural = "Косметика"
 
 
@@ -103,7 +103,7 @@ class Parameter(models.Model):
                                   verbose_name="Тип параметра")
 
     class Meta:
-        verbose_name = "Параметр"
+        verbose_name = "Параметры"
         verbose_name_plural = "Параметры"
 
     def __str__(self):
