@@ -129,6 +129,7 @@ class ParameterValue(models.Model):
     class Meta:
         verbose_name = "Значение"
         verbose_name_plural = "Значения параметров"
+        ordering = ['value_str', 'value_int', 'value_min']
 
     def get_value(self):
         """Возвращает значение параметра в зависимости от его типа."""
@@ -143,4 +144,3 @@ class ParameterValue(models.Model):
 
     def __str__(self):
         return f'{self.parameter.name}: {self.get_value()}'
-
