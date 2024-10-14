@@ -6,7 +6,7 @@ from rest_framework import viewsets, mixins
 
 from .filters import DynamicProductFilter
 from .models import Product
-from .serializers import ProductSerializer
+from .serializers import ProductSerializer, ProductCreateSerializer
 
 
 @extend_schema(tags=["Продукция"])
@@ -56,3 +56,9 @@ class ProductViewSet(viewsets.GenericViewSet,
         if isinstance(kwargs.get('data', {}), list):
             kwargs['many'] = True
         return super().get_serializer(*args, **kwargs)
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ProductSerializer
+        if self.action == 'create':
+            return ProductCreateSerializer

@@ -3,17 +3,17 @@ from rest_framework import serializers
 from core.models import Product, Parameter, ParameterValue
 
 
-# class ProductSerializer(serializers.ModelSerializer):
-#     """
-#     Сериализатор для импорта косметики из бд сайта
-#     """
-#
-#     class Meta:
-#         model = Product
-#         fields = [
-#             'name',
-#             'article_number'
-#         ]
+class ProductCreateSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для импорта косметики из бд сайта
+    """
+
+    class Meta:
+        model = Product
+        fields = [
+            'name',
+            'article_number'
+        ]
 
 
 class ParameterValueSerializer(serializers.ModelSerializer):
@@ -73,17 +73,17 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['name', 'article_number', 'parameter_values']
 
-    def create(self, validated_data):
-        """
-        Создаем продукт с его параметрами.
-        """
-        parameter_values_data = validated_data.pop('parameter_values')
-        product = Product.objects.create(**validated_data)
-
-        # Создаем связанные ParameterValue для продукта
-        for parameter_value_data in parameter_values_data:
-            parameter_value = ParameterValueSerializer().create(
-                parameter_value_data)
-            product.parameter_values.add(parameter_value)
-
-        return product
+    # def create(self, validated_data):
+    #     """
+    #     Создаем продукт с его параметрами.
+    #     """
+    #     parameter_values_data = validated_data.pop('parameter_values')
+    #     product = Product.objects.create(**validated_data)
+    #
+    #     # Создаем связанные ParameterValue для продукта
+    #     for parameter_value_data in parameter_values_data:
+    #         parameter_value = ParameterValueSerializer().create(
+    #             parameter_value_data)
+    #         product.parameter_values.add(parameter_value)
+    #
+    #     return product

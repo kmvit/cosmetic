@@ -1,75 +1,23 @@
 from django.db import models
 
 
-# class Cosmetic(models.Model):
-#     """
-#     Модель косметики
-#     """
-#     name = models.CharField(max_length=255, verbose_name="Название")
-#     article_number = models.PositiveIntegerField(verbose_name="Артикул")
-#
-#     class Meta:
-#         verbose_name = "Косметику"
-#         verbose_name_plural = "Косметика"
-#
-#     def __str__(self):
-#         return f'{self.name}({self.article_number})'
-#
-#
-# class Metadata(models.Model):
-#     name = models.CharField(max_length=100, verbose_name="Название параметра")
-#     METADATA_FIELD_TYPE = (
-#         ('0', 'Строка'),
-#         ('1', 'Число'),
-#         ('2', 'От и до'),
-#     )
-#     field_type = models.CharField(max_length=1, choices=METADATA_FIELD_TYPE,
-#                                   default='0',
-#                                   verbose_name="Тип значения параметра")
-#
-#     class Meta:
-#         verbose_name = "Параметр"
-#         verbose_name_plural = "Параметры"
-#
-#     def __str__(self):
-#         return self.name
-#
-#
-# class Parameter(models.Model):
-#     """
-#     Параметры косметики
-#     """
-#     cosmetic = models.ManyToManyField(Cosmetic,
-#                                       blank=True,
-#                                       verbose_name="Косметическое средство")
-#     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE,
-#                                  blank=True, null=True,
-#                                  verbose_name="Параметр")
-#     value_char = models.CharField(max_length=100, blank=True, null=True,
-#                                   verbose_name="Если строка пишем сюда")
-#     value_integer = models.IntegerField(default=0, blank=True, null=True,
-#                                         verbose_name="Если число пишем сюда")
-#     value_less = models.IntegerField(default=0, blank=True, null=True,
-#                                      verbose_name="Число от")
-#     value_more = models.IntegerField(default=0, blank=True, null=True,
-#                                      verbose_name="Число до")
-#
-#     @property
-#     def value(self):
-#         if self.metadata.field_type == '0':
-#             return self.value_char
-#         elif self.metadata.field_type == '1':
-#             return self.value_integer
-#         elif self.metadata.field_type == '2':
-#             return f'{self.value_less} - {self.value_more}'
-#         return self.value_char
-#
-#     class Meta:
-#         verbose_name = "Значение"
-#         verbose_name_plural = "Значения параметров"
-#
-#     def __str__(self):
-#         return f'{self.metadata.name} {self.value}'
+class Property(models.Model):
+    """
+    Модель свойств косметических средств.
+    """
+    name = models.CharField(max_length=255, verbose_name="Название свойства")
+    order = models.PositiveIntegerField(
+        verbose_name="Порядок использования")
+    program_types = models.ManyToManyField('ProgramType',
+                                           related_name="properties",
+                                           verbose_name="Типы программы")
+
+    class Meta:
+        verbose_name = 'Свойства'
+        verbose_name_plural = "Свойства"
+
+    def __str__(self):
+        return self.name
 
 
 class Product(models.Model):
@@ -78,6 +26,10 @@ class Product(models.Model):
     """
     name = models.CharField(max_length=255, verbose_name="Название")
     article_number = models.PositiveIntegerField(verbose_name="Артикул")
+    properties = models.ManyToManyField(Property, verbose_name="Свойства")
+    frequency_of_use = models.PositiveIntegerField(
+        default=1, verbose_name="Частота использования (в днях)"
+    )
 
     def __str__(self):
         return f'{self.name}({self.article_number})'
@@ -122,9 +74,11 @@ class ParameterValue(models.Model):
     value_int = models.IntegerField(blank=True, null=True,
                                     verbose_name="Значение")
     value_min = models.IntegerField(blank=True,
-                                    null=True, verbose_name="Значения от")  # Для хранения минимального значения диапазона
+                                    null=True,
+                                    verbose_name="Значения от")  # Для хранения минимального значения диапазона
     value_max = models.IntegerField(blank=True,
-                                    null=True, verbose_name="Значение до")  # Для хранения максимального значения диапазона
+                                    null=True,
+                                    verbose_name="Значение до")  # Для хранения максимального значения диапазона
 
     class Meta:
         verbose_name = "Значение"
@@ -144,3 +98,63 @@ class ParameterValue(models.Model):
 
     def __str__(self):
         return f'{self.parameter.name}: {self.get_value()}'
+
+
+class ProgramType(models.Model):
+    """
+    Тип программы
+    """
+    name = models.CharField(max_length=50,
+                            verbose_name="Название программы")
+    time_to_send = models.TimeField(
+        verbose_name="Время отправки программы")
+
+    class Meta:
+        verbose_name = "Тип программы"
+        verbose_name_plural = "Тип программы"
+
+    def __str__(self):
+        return self.name
+
+
+class Program(models.Model):
+    """
+    Модель программы
+    """
+    user_id = models.CharField(max_length=100,
+                               verbose_name="ID пользователя из чата")
+    program_type = models.ForeignKey(ProgramType, on_delete=models.CASCADE,
+                                     verbose_name="Тип программы")
+    products = models.ManyToManyField(Product,
+                                      verbose_name="Продукты программы")
+    start_date = models.DateField(auto_now_add=True,
+                                  verbose_name="Дата старта программы")
+    duration = models.PositiveIntegerField(default=100,
+                                           verbose_name="Длительность программы в днях")
+
+
+    class Meta:
+        verbose_name = "Программы"
+        verbose_name_plural = "Программы"
+
+    def __str__(self):
+        return f'user id-{self.user_id} тип программы-{self.program_type}'
+
+
+class SkincareProgram(models.Model):
+    """
+    Модель для отслеживания программ ухода.
+    """
+    user_id = models.PositiveIntegerField(
+        verbose_name="ID пользователя в боте")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE,
+                                verbose_name="Продукт")
+    last_sent = models.DateField(null=True, blank=True,
+                                 verbose_name="Последняя отправка")
+    program_type = models.CharField(
+        max_length=10, choices=(("morning", "Утро"), ("evening", "Вечер")),
+        verbose_name="Тип программы"
+    )
+
+    def __str__(self):
+        return f"{self.user_id} - {self.product.name} - {self.program_type}"

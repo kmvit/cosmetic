@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django import forms
-from .models import Product, Parameter, ParameterValue
+from .models import Product, Parameter, ParameterValue, Property, Program, \
+    ProgramType
 
 
 # Кастомная форма для модели ParameterValue
@@ -64,6 +65,15 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['name', 'article_number']
 
 
+class ProgramAdmin(admin.ModelAdmin):
+    list_display = ['user_id', 'program_type']
+    search_fields = ['user_id']
+    list_filter = ['user_id']
+
+
 admin.site.register(Product, ProductAdmin)
 admin.site.register(Parameter)
+admin.site.register(Property)
 admin.site.register(ParameterValue, ParameterValueAdmin)
+admin.site.register(ProgramType)
+admin.site.register(Program, ProgramAdmin)
