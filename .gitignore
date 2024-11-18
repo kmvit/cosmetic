@@ -200,7 +200,7 @@ celerybeat-schedule
 .venv
 venv/
 ENV/
-
+*/migrations/
 # Spyder project settings
 .spyderproject
 .spyproject
