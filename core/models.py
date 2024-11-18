@@ -24,7 +24,7 @@ class Product(models.Model):
     """
     Модель косметики
     """
-    name = models.CharField(verbose_name="Название")
+    name = models.TextField(verbose_name="Название")
     article_number = models.PositiveIntegerField(verbose_name="Артикул")
     properties = models.ManyToManyField(Property, verbose_name="Свойства")
     frequency_of_use = models.PositiveIntegerField(
