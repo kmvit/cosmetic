@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from .models import Product, Parameter, ParameterValue, Property, Program, \
-    ProgramType
+    ProgramType, Category
 
 
 # Кастомная форма для модели ParameterValue
@@ -60,9 +60,15 @@ class ParameterValueAdmin(admin.ModelAdmin):
         return field
 
 
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+
+
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'article_number']
+    list_display = ['name', 'article_number', 'category']
     search_fields = ['name', 'article_number']
+    list_filter = ('category',)
 
 
 class ProgramAdmin(admin.ModelAdmin):

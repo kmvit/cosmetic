@@ -1,23 +1,55 @@
 import logging
-import time
 
 import telebot
-from django.core.management.base import BaseCommand
 from django.utils import timezone
 from telebot import types
 
-from core.models import Program, ProgramType, Product, Property
+from core.models import Program, ProgramType, Product, Property, Category
 
 bot = telebot.TeleBot('8183114713:AAG_m1zbHCQMyITMIvVETYELzbyCJmYKH6o')
 
 articles = []
+user_states = {}  # Словарь для хранения состояний пользователей
 
 
-# Приветствие при старте
+def set_user_state(user_id, state):
+    user_states[user_id] = state
+
+
+def get_user_state(user_id):
+    return user_states.get(user_id, 'main_menu')
+
+
+# Укажите имя канала
+CHANNEL_USERNAME = '@yourchannelname'  # Замените на имя вашего канала
+
+
+def is_subscribed(user_id):
+    try:
+        status = bot.get_chat_member(CHANNEL_USERNAME, user_id).status
+        if status in ['creator', 'administrator', 'member']:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"Error checking subscription status: {e}")
+        return False
+
+
 @bot.message_handler(commands=['start'])
 def start_command(message):
+    user_id = message.chat.id
+    if is_subscribed(user_id):
+        show_main_menu(message)
+    else:
+        send_subscription_prompt(user_id)
+
+
+def show_main_menu(message):
     # Извлекаем текст сообщения
     # Извлекаем параметры из команды /start
+    user_id = message.chat.id
+    set_user_state(user_id, 'main_menu')
     command_text = message.text.strip()
     if len(command_text.split()) > 1:
         params = command_text.split()[1]  # Получаем параметры после /start
@@ -27,60 +59,483 @@ def start_command(message):
 
         logging.info(f"Получены артикулы: {article_numbers}")
 
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton(
-            "Сформировать программу ухода за лицом")
-        btn2 = types.KeyboardButton("Отключить уведомления!")
-        btn3 = types.KeyboardButton("Удалить программу")
-        markup.add(btn1, btn2, btn3)
-        bot.send_message(message.chat.id,
-                         "Привет,{0.first_name}! "
-                         "Добро пожаловать в бот для "
-                         "программы ухода за вашим лицом!".format(
-                             message.from_user), reply_markup=markup)
-        bot.send_message(message.chat.id,
-                         f"Получены артикулы: {', '.join(article_numbers)} "
-                         f"и по ним будет составлена программа ухода!")
+        # markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        # btn1 = types.KeyboardButton(
+        #     "Сформировать программу ухода за лицом")
+        # btn2 = types.KeyboardButton("Отключить уведомления!")
+        # btn3 = types.KeyboardButton("Удалить программу")
+        # markup.add(btn1, btn2, btn3)
+        # bot.send_message(message.chat.id,
+        #                  "Привет,{0.first_name}! "
+        #                  "Добро пожаловать в бот для "
+        #                  "программы ухода за вашим лицом!".format(
+        #                      message.from_user), reply_markup=markup)
+        # bot.send_message(message.chat.id,
+        #                  f"Получены артикулы: {', '.join(article_numbers)} "
+        #                  f"и по ним будет составлена программа ухода!")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Сформировать программу ухода за лицом")
+    btn2 = types.KeyboardButton("Получить утреннюю программу")
+    btn3 = types.KeyboardButton("Получить вечернюю программу")
+    btn4 = types.KeyboardButton("Редактировать программу")
+    btn5 = types.KeyboardButton("Консультация с косметологом")
+    markup.add(btn1, btn2, btn3, btn4, btn5)
+    bot.send_message(message.chat.id,
+                     f"Привет, {message.from_user.first_name}! "
+                     f"Добро пожаловать в бот для "
+                     f"программы ухода за вашим лицом! "
+                     f"Сформируйте программу для ухода за лицом",
+                     reply_markup=markup)
 
 
-@bot.message_handler(content_types=['text'])
-def func(message):
-    if (message.text == "Сформировать программу ухода за лицом"):
-        user_id = message.chat.id
-        # Проверяем, существует ли программа для данного пользователя
-        existing_program = Program.objects.filter(
-            user_id=user_id).exists()
-        if existing_program:
-            # Если программа уже существует, отправляем сообщение
-            bot.send_message(message.chat.id,
-                             text="Ваша программа уже сформирована!")
-        else:
-            # Логика для создания программы
-            bot.send_message(message.chat.id,
-                             text="Программа формируется")
-            create_programm(message)
-    elif (message.text == "Отключить уведомления!"):
-        bot.send_message(message.chat.id,
-                         text="Уведомления с сайта отключены!")
+def send_subscription_prompt(user_id):
+    markup = types.InlineKeyboardMarkup()
+    btn_subscribe = types.InlineKeyboardButton(text='Подписаться на канал',
+                                               url=f'https://t.me/{CHANNEL_USERNAME.lstrip("@")}')
+    btn_check = types.InlineKeyboardButton(text='Я подписался',
+                                           callback_data='check_subscription')
+    markup.add(btn_subscribe)
+    markup.add(btn_check)
+    bot.send_message(user_id,
+                     "Чтобы пользоваться ботом, пожалуйста, подпишитесь на наш канал.",
+                     reply_markup=markup)
 
-    elif (message.text == "Удалить программу"):
-        stop_notifications(message)
 
-    elif message.text == "Что я могу?":
-        bot.send_message(message.chat.id,
-                         text="Поздороваться с читателями")
-
-    elif (message.text == "Вернуться в главное меню"):
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        button1 = types.KeyboardButton("? Поздороваться")
-        button2 = types.KeyboardButton("❓ Задать вопрос")
-        markup.add(button1, button2)
-        bot.send_message(message.chat.id,
-                         text="Вы вернулись в главное меню",
-                         reply_markup=markup)
+@bot.callback_query_handler(
+    func=lambda call: call.data == 'check_subscription')
+def check_subscription(call):
+    user_id = call.from_user.id
+    if is_subscribed(user_id):
+        bot.answer_callback_query(call.id, "Спасибо за подписку!")
+        show_main_menu(call.message)
+        bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
     else:
+        bot.answer_callback_query(call.id, "Вы ещё не подписаны на канал.")
+
+
+def subscription_required(func):
+    def wrapper(message):
+        user_id = message.chat.id
+        if is_subscribed(user_id):
+            return func(message)
+        else:
+            send_subscription_prompt(user_id)
+
+    return wrapper
+
+
+# Приветствие при старте
+# @bot.message_handler(commands=['start'])
+# def start_command(message):
+#     # Извлекаем текст сообщения
+#     # Извлекаем параметры из команды /start
+#     user_id = message.chat.id
+#     set_user_state(user_id, 'main_menu')
+#     command_text = message.text.strip()
+#     if len(command_text.split()) > 1:
+#         params = command_text.split()[1]  # Получаем параметры после /start
+#         article_numbers = params.split('-')  # Разделяем артикулы по тире
+#         for article in article_numbers:
+#             articles.append(article)
+#
+#         logging.info(f"Получены артикулы: {article_numbers}")
+#
+#         # markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#         # btn1 = types.KeyboardButton(
+#         #     "Сформировать программу ухода за лицом")
+#         # btn2 = types.KeyboardButton("Отключить уведомления!")
+#         # btn3 = types.KeyboardButton("Удалить программу")
+#         # markup.add(btn1, btn2, btn3)
+#         # bot.send_message(message.chat.id,
+#         #                  "Привет,{0.first_name}! "
+#         #                  "Добро пожаловать в бот для "
+#         #                  "программы ухода за вашим лицом!".format(
+#         #                      message.from_user), reply_markup=markup)
+#         # bot.send_message(message.chat.id,
+#         #                  f"Получены артикулы: {', '.join(article_numbers)} "
+#         #                  f"и по ним будет составлена программа ухода!")
+#     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#     btn1 = types.KeyboardButton("Сформировать программу ухода за лицом")
+#     btn2 = types.KeyboardButton("Получить утреннюю программу")
+#     btn3 = types.KeyboardButton("Получить вечернюю программу")
+#     btn4 = types.KeyboardButton("Редактировать программу")
+#     btn5 = types.KeyboardButton("Консультация с косметологом")
+#     markup.add(btn1, btn2, btn3, btn4, btn5)
+#     bot.send_message(message.chat.id,
+#                      f"Привет, {message.from_user.first_name}! "
+#                      f"Добро пожаловать в бот для "
+#                      f"программы ухода за вашим лицом! "
+#                      f"Сформируйте программу для ухода за лицом",
+#                      reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == "Назад")
+@subscription_required
+def go_back(message):
+    user_id = message.chat.id
+    current_state = get_user_state(user_id)
+
+    if current_state == 'editing_program':
+        # Если пользователь находится в меню редактирования программы, возвращаем его в главное меню
+        set_user_state(user_id, 'main_menu')
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton("Получить утреннюю программу")
+        btn2 = types.KeyboardButton("Получить вечернюю программу")
+        btn3 = types.KeyboardButton("Редактировать программу")
+        btn4 = types.KeyboardButton("Консультация с косметологом")
+        markup.add(btn1, btn2)
+        markup.add(btn3, btn4)
+        bot.send_message(user_id, "Вы вернулись в главное меню.",
+                         reply_markup=markup)
+
+    elif current_state == 'adding_product' or current_state == 'deleting_product':
+        # Возвращаемся в меню редактирования программы
+        set_user_state(user_id, 'editing_program')
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton("Добавить продукт")
+        btn2 = types.KeyboardButton("Удалить продукт")
+        btn3 = types.KeyboardButton("Назад")
+        markup.add(btn1, btn2, btn3)
+        bot.send_message(user_id,
+                         "Вы вернулись в меню редактирования программы.",
+                         reply_markup=markup)
+
+    else:
+        # По умолчанию возвращаем в главное меню
+        set_user_state(user_id, 'main_menu')
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton("Получить утреннюю программу")
+        btn2 = types.KeyboardButton("Получить вечернюю программу")
+        btn3 = types.KeyboardButton("Редактировать программу")
+        btn4 = types.KeyboardButton("Консультация с косметологом")
+        markup.add(btn1, btn2)
+        markup.add(btn3, btn4)
+        bot.send_message(user_id, "Вы вернулись в главное меню.",
+                         reply_markup=markup)
+
+
+@bot.message_handler(
+    func=lambda message: message.text == "Получить утреннюю программу")
+@subscription_required
+def send_morning_program(message):
+    user_id = message.chat.id
+    morning_program = Program.objects.filter(user_id=user_id,
+                                             program_type__name="Утренняя программа").first()
+    if morning_program and morning_program.products.exists():
+        send_program_to_bot(user_id, morning_program.products.all(),
+                            "Утренняя")
+    else:
+        bot.send_message(user_id,
+                         "У вас нет сохранённой утренней программы. Пожалуйста, создайте её или добавьте продукты.")
+
+
+@bot.message_handler(
+    func=lambda message: message.text == "Получить вечернюю программу")
+@subscription_required
+def send_evening_program(message):
+    user_id = message.chat.id
+    evening_program = Program.objects.filter(user_id=user_id,
+                                             program_type__name="Вечерняя программа").first()
+    if evening_program and evening_program.products.exists():
+        send_program_to_bot(user_id, evening_program.products.all(),
+                            "Вечерняя")
+    else:
+        bot.send_message(user_id,
+                         "У вас нет сохранённой вечерней программы. Пожалуйста, создайте её или добавьте продукты.")
+
+
+@bot.message_handler(
+    func=lambda message: message.text == "Консультация с косметологом")
+@subscription_required
+def start_consultation(message):
+    # Замените 'cosmetologist_username' на реальный username косметолога или ссылку на чат
+    cosmetologist_username = 'cosmetologist_username'  # Например, 'cosmetologist_bot' или 'cosmetologist_channel'
+
+    # Отправляем сообщение с ссылкой на чат косметолога
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton(text="Перейти к косметологу",
+                                     url=f"https://t.me/{cosmetologist_username}")
+    markup.add(btn)
+    bot.send_message(message.chat.id,
+                     "Нажмите на кнопку ниже, чтобы связаться с косметологом:",
+                     reply_markup=markup)
+
+
+@bot.message_handler(
+    func=lambda
+            message: message.text == "Сформировать программу ухода за лицом")
+def func(message):
+    user_id = message.chat.id
+    # Проверяем, существует ли программа для данного пользователя
+    existing_program = Program.objects.filter(
+        user_id=user_id).exists()
+    if existing_program:
+        # Если программа уже существует, отправляем сообщение
         bot.send_message(message.chat.id,
-                         text="На такую комманду я не запрограммировал..")
+                         text="Ваша программа уже сформирована!")
+    else:
+        # Логика для создания программы
+        bot.send_message(message.chat.id,
+                         text="Программа сформирована")
+        create_programm(message)
+
+
+# Словарь для хранения временных данных пользователей
+user_data = {}
+
+
+@bot.message_handler(
+    func=lambda message: message.text == "Редактировать программу")
+@subscription_required
+def edit_program(message):
+    user_id = message.chat.id
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Добавить продукт")
+    btn2 = types.KeyboardButton("Удалить продукт")
+    btn3 = types.KeyboardButton("Назад")
+    markup.add(btn1, btn2, btn3)
+    bot.send_message(user_id,
+                     "Выберите действие для редактирования программы:",
+                     reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == "Добавить продукт")
+@subscription_required
+def add_product_step1(message):
+    user_id = message.chat.id
+    set_user_state(user_id, 'adding_product_step1')
+    # Предлагаем выбрать программу
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
+                                       one_time_keyboard=True)
+    btn1 = types.KeyboardButton("Утренняя программа")
+    btn2 = types.KeyboardButton("Вечерняя программа")
+    btn3 = types.KeyboardButton("Назад")
+    markup.add(btn1, btn2, btn3)
+    msg = bot.send_message(user_id,
+                           "В какую программу вы хотите добавить продукт?",
+                           reply_markup=markup)
+    bot.register_next_step_handler(msg, add_product_step2)
+
+
+def add_product_step2(message):
+    user_id = message.chat.id
+    program_choice = message.text.strip()
+
+    if program_choice == "Назад":
+        go_back(message)
+        return
+
+    if program_choice not in ["Утренняя программа", "Вечерняя программа"]:
+        bot.send_message(user_id,
+                         "Пожалуйста, выберите программу из предложенных вариантов.")
+        add_product_step1(message)
+        return
+
+    # Сохраняем выбор программы
+    user_data[user_id] = {'program_choice': program_choice}
+    set_user_state(user_id, 'adding_product_step2')
+
+    # Получаем список категорий
+    categories = Category.objects.all()
+    if categories.exists():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
+                                           one_time_keyboard=True)
+        for category in categories:
+            markup.add(types.KeyboardButton(category.name))
+        markup.add(types.KeyboardButton("Назад"))
+        msg = bot.send_message(user_id, "Выберите категорию продукта:",
+                               reply_markup=markup)
+        bot.register_next_step_handler(msg, add_product_step3)
+    else:
+        bot.send_message(user_id,
+                         "Категорий пока нет. Пожалуйста, добавьте категории в систему.")
+        edit_program(message)
+
+
+def add_product_step3(message):
+    user_id = message.chat.id
+    category_name = message.text.strip()
+
+    if category_name == "Назад":
+        add_product_step1(message)
+        return
+
+    category = Category.objects.filter(name=category_name).first()
+    if not category:
+        bot.send_message(user_id,
+                         "Категория не найдена. Пожалуйста, выберите категорию из списка.")
+        add_product_step2(message)
+        return
+
+    # Сохраняем выбранную категорию
+    user_data[user_id]['category'] = category
+    set_user_state(user_id, 'adding_product_step3')
+
+    # Получаем продукты из выбранной категории
+    products = Product.objects.filter(category=category)
+    if products.exists():
+        # Предлагаем выбрать продукт
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
+                                           one_time_keyboard=True)
+        for product in products:
+            markup.add(types.KeyboardButton(
+                f"{product.name} (Артикул: {product.article_number})"))
+        markup.add(types.KeyboardButton("Назад"))
+        msg = bot.send_message(user_id, "Выберите продукт из категории:",
+                               reply_markup=markup)
+        # Сохраняем список продуктов для дальнейшего использования
+        user_data[user_id]['products_list'] = list(products)
+        bot.register_next_step_handler(msg, add_product_step4)
+    else:
+        bot.send_message(user_id, "В этой категории пока нет продуктов.")
+        add_product_step2(message)
+
+
+def add_product_step4(message):
+    user_id = message.chat.id
+    product_choice = message.text.strip()
+
+    if product_choice == "Назад":
+        add_product_step2(message)
+        return
+
+    selected_product = None
+    for product in user_data[user_id]['products_list']:
+        product_display_name = f"{product.name} (Артикул: {product.article_number})"
+        if product_choice == product_display_name:
+            selected_product = product
+            break
+
+    if not selected_product:
+        bot.send_message(user_id, "Пожалуйста, выберите продукт из списка.")
+        add_product_step3(message)
+        return
+
+    # Сохраняем выбранный продукт
+    user_data[user_id]['product'] = selected_product
+
+    # Добавляем продукт в программу пользователя
+    program_choice = user_data[user_id]['program_choice']
+    program = Program.objects.filter(user_id=user_id,
+                                     program_type__name=program_choice).first()
+    if not program:
+        program_type = ProgramType.objects.get(name=program_choice)
+        program = Program.objects.create(user_id=user_id,
+                                         program_type=program_type)
+
+    # Проверяем, не добавлен ли продукт уже в программу
+    if program.products.filter(id=selected_product.id).exists():
+        bot.send_message(user_id,
+                         f"Продукт '{selected_product.name}' уже добавлен в {program_choice.lower()}.")
+    else:
+        program.products.add(selected_product)
+        bot.send_message(user_id,
+                         f"Продукт '{selected_product.name}' успешно добавлен в {program_choice.lower()}.")
+
+    # Очищаем временные данные пользователя
+    user_data.pop(user_id, None)
+    set_user_state(user_id, 'editing_program')
+
+    # Возвращаемся в меню редактирования программы
+    edit_program(message)
+
+
+@bot.message_handler(func=lambda message: message.text == "Удалить продукт")
+@subscription_required
+def delete_product_step1(message):
+    user_id = message.chat.id
+    set_user_state(user_id, 'deleting_product')
+    # Предлагаем выбрать программу
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True,
+                                       one_time_keyboard=True)
+    btn1 = types.KeyboardButton("Утренняя программа")
+    btn2 = types.KeyboardButton("Вечерняя программа")
+    btn3 = types.KeyboardButton("Отмена")
+    markup.add(btn1, btn2, btn3)
+    msg = bot.send_message(user_id,
+                           "Из какой программы вы хотите удалить продукт?",
+                           reply_markup=markup)
+    bot.register_next_step_handler(msg, delete_product_step2)
+
+
+def delete_product_step2(message):
+    user_id = message.chat.id
+    if message.text == "Назад":
+        go_back(message)
+        return
+    program_choice = message.text.strip()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Добавить продукт")
+    btn2 = types.KeyboardButton("Удалить продукт")
+    btn3 = types.KeyboardButton("Назад")
+    markup.add(btn1, btn2, btn3)
+
+    if program_choice == "Отмена":
+        bot.send_message(user_id, "Операция отменена.")
+        return
+
+    if program_choice not in ["Утренняя программа", "Вечерняя программа"]:
+        bot.send_message(user_id,
+                         "Пожалуйста, выберите программу из предложенных вариантов.")
+        return
+
+    # Сохраняем выбор программы
+    user_data[user_id] = {'program_choice': program_choice}
+
+    # Получаем соответствующую программу пользователя
+    program = Program.objects.filter(user_id=user_id,
+                                     program_type__name=program_choice).first()
+
+    if not program or not program.products.exists():
+        bot.send_message(user_id,
+                         f"У вас нет продуктов в {program_choice.lower()}.",
+                         reply_markup=markup)
+        return
+
+    # Формируем список продуктов для выбора
+    products = program.products.all()
+    product_list = "\n".join(
+        [f"{idx + 1}. {prod.name} (Артикул: {prod.article_number})" for
+         idx, prod in enumerate(products)])
+    msg = bot.send_message(user_id,
+                           f"Ваши продукты в {program_choice.lower()}:\n{product_list}\n\nВведите номер продукта, который хотите удалить:")
+    bot.register_next_step_handler(msg, delete_product_step3, program,
+                                   products)
+
+
+def delete_product_step3(message, program, products):
+    user_id = message.chat.id
+    choice = message.text.strip()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Добавить продукт")
+    btn2 = types.KeyboardButton("Удалить продукт")
+    btn3 = types.KeyboardButton("Назад")
+    markup.add(btn1, btn2, btn3)
+    try:
+        product_index = int(choice) - 1
+        if product_index < 0 or product_index >= len(products):
+            raise ValueError
+
+        product_to_delete = products[product_index]
+
+        # Удаляем продукт из программы
+        program.products.remove(product_to_delete)
+        bot.send_message(user_id,
+                         f"Продукт '{product_to_delete.name}' удален из {program.program_type.name.lower()}.")
+
+        # Проверяем, остались ли продукты в программе
+        if not program.products.exists():
+            bot.send_message(user_id,
+                             f"В вашей {program.program_type.name.lower()} больше нет продуктов.",
+                             reply_markup=markup)
+
+    except ValueError:
+        bot.send_message(user_id,
+                         "Пожалуйста, введите корректный номер продукта.")
+    # Возвращаем пользователя в меню редактирования программы
+    bot.send_message(user_id,
+                     "Вы вернулись в меню редактирования программы.",
+                     reply_markup=markup)
 
 
 def send_program_to_bot(chat_id, program, program_name):
@@ -100,7 +555,7 @@ def send_program_to_bot(chat_id, program, program_name):
 def create_programm(message):
     """Функция для создания программ пользователя"""
     user_id = message.chat.id
-    print(articles)
+    logging.info(articles)
     # Получаем список артикулов с сайта (предположим, передали с сайта)
     article_numbers = articles  # Пример данных
 
@@ -145,11 +600,12 @@ def create_programm(message):
     evening_program_bd.products.add(*evening_products)
     evening_program_bd.save()
     articles.clear()
-    bot.send_message(user_id,
-                     "Программа ухода составлена! Вы будете получать уведомления утром и вечером.")
-    send_program_to_bot(user_id, morning_program, "Утренняя")
-    time.sleep(3)
-    send_program_to_bot(user_id, evening_program, "Вечерняя")
+    # Отправляем программы в бот
+    # bot.send_message(user_id,
+    #                  "Программа ухода составлена! Вы будете получать уведомления утром и вечером.")
+    # send_program_to_bot(user_id, morning_program, "Утренняя")
+    # time.sleep(3)
+    # send_program_to_bot(user_id, evening_program, "Вечерняя")
 
 
 # Функция для отправки уведомлений

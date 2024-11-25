@@ -20,11 +20,31 @@ class Property(models.Model):
         return self.name
 
 
+from django.db import models
+
+
+class Category(models.Model):
+    """
+    Категории
+    """
+    name = models.CharField(max_length=100, unique=True, verbose_name="Категория")
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     """
     Модель косметики
     """
     name = models.TextField(verbose_name="Название")
+    category = models.ForeignKey(Category, on_delete=models.CASCADE,
+                                 blank=True, null=True,
+                                 related_name='products', verbose_name="Категория")
     article_number = models.PositiveIntegerField(verbose_name="Артикул")
     properties = models.ManyToManyField(Property, verbose_name="Свойства")
     frequency_of_use = models.PositiveIntegerField(
@@ -131,7 +151,6 @@ class Program(models.Model):
                                   verbose_name="Дата старта программы")
     duration = models.PositiveIntegerField(default=100,
                                            verbose_name="Длительность программы в днях")
-
 
     class Meta:
         verbose_name = "Программы"
