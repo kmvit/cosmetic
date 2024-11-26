@@ -21,19 +21,62 @@ def get_user_state(user_id):
 
 
 # Укажите имя канала
-CHANNEL_USERNAME = '@yourchannelname'  # Замените на имя вашего канала
+CHANNEL_USERNAME = '@volkov_cosmetic'  # Замените на имя вашего канала
 
 
 def is_subscribed(user_id):
     try:
         status = bot.get_chat_member(CHANNEL_USERNAME, user_id).status
-        if status in ['creator', 'administrator', 'member']:
-            return True
-        else:
-            return False
+        print(f"Проверка подписки для пользователя {user_id}: {status}")
+        return status in ['creator', 'administrator', 'member', 'left']
     except Exception as e:
-        print(f"Error checking subscription status: {e}")
+        print(f"Ошибка проверки подписки: {e}")
         return False
+
+
+def send_subscription_prompt(user_id):
+    markup = types.InlineKeyboardMarkup()
+    btn_subscribe = types.InlineKeyboardButton(text='Подписаться на канал',
+                                               url=f'https://t.me/{CHANNEL_USERNAME.lstrip("@")}')
+    btn_check = types.InlineKeyboardButton(text='Я подписался',
+                                           callback_data='check_subscription')
+    markup.add(btn_subscribe)
+    markup.add(btn_check)
+    bot.send_message(user_id,
+                     "Чтобы пользоваться ботом, пожалуйста, подпишитесь на наш канал.",
+                     reply_markup=markup)
+
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == 'check_subscription')
+def check_subscription(call):
+    user_id = call.from_user.id
+    print(f"Проверка подписки для пользователя {user_id}")
+    try:
+        if is_subscribed(user_id):
+            print(f"Пользователь {user_id} подписан.")
+            bot.answer_callback_query(call.id, "Спасибо за подписку!")
+            show_main_menu(call.message)
+            bot.delete_message(chat_id=user_id,
+                               message_id=call.message.message_id)
+        else:
+            print(f"Пользователь {user_id} не подписан.")
+            bot.answer_callback_query(call.id, "Вы ещё не подписаны на канал.")
+    except Exception as e:
+        print(f"Ошибка при проверке подписки для {user_id}: {e}")
+        bot.answer_callback_query(call.id,
+                                  "Произошла ошибка. Попробуйте снова.")
+
+
+def subscription_required(func):
+    def wrapper(message):
+        user_id = message.chat.id
+        if is_subscribed(user_id):
+            return func(message)
+        else:
+            send_subscription_prompt(user_id)
+
+    return wrapper
 
 
 @bot.message_handler(commands=['start'])
@@ -86,42 +129,6 @@ def show_main_menu(message):
                      f"программы ухода за вашим лицом! "
                      f"Сформируйте программу для ухода за лицом",
                      reply_markup=markup)
-
-
-def send_subscription_prompt(user_id):
-    markup = types.InlineKeyboardMarkup()
-    btn_subscribe = types.InlineKeyboardButton(text='Подписаться на канал',
-                                               url=f'https://t.me/{CHANNEL_USERNAME.lstrip("@")}')
-    btn_check = types.InlineKeyboardButton(text='Я подписался',
-                                           callback_data='check_subscription')
-    markup.add(btn_subscribe)
-    markup.add(btn_check)
-    bot.send_message(user_id,
-                     "Чтобы пользоваться ботом, пожалуйста, подпишитесь на наш канал.",
-                     reply_markup=markup)
-
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == 'check_subscription')
-def check_subscription(call):
-    user_id = call.from_user.id
-    if is_subscribed(user_id):
-        bot.answer_callback_query(call.id, "Спасибо за подписку!")
-        show_main_menu(call.message)
-        bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
-    else:
-        bot.answer_callback_query(call.id, "Вы ещё не подписаны на канал.")
-
-
-def subscription_required(func):
-    def wrapper(message):
-        user_id = message.chat.id
-        if is_subscribed(user_id):
-            return func(message)
-        else:
-            send_subscription_prompt(user_id)
-
-    return wrapper
 
 
 # Приветствие при старте
