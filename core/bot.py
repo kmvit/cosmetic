@@ -6,8 +6,8 @@ from telebot import types
 
 from core.models import Program, ProgramType, Product, Property, Category
 
-bot = telebot.TeleBot('8183114713:AAG_m1zbHCQMyITMIvVETYELzbyCJmYKH6o')
-
+# bot = telebot.TeleBot('8183114713:AAG_m1zbHCQMyITMIvVETYELzbyCJmYKH6o')
+bot = telebot.TeleBot('7652258523:AAEm6V-2-2Evqvconn5FWX8wi90N7MbEBvA')
 articles = []
 user_states = {}  # Словарь для хранения состояний пользователей
 
